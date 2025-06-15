@@ -38,7 +38,7 @@ Google Fonts (Inter)
 
 Clone the repository:
 
-git clone https://github.com/yourusername/premium-finance-app.git
+git clone https://github.com/ilkinali/-Finance-App.git
 
 Open index.html in your browser.
 
