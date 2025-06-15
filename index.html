@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Finance App</title>
+  <script src="https://js.stripe.com/v3/"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css" rel="stylesheet">
+  <style>
+    :root {
+      --primary: #0077cc;
+      --accent: #00bfa6;
+      --bg: #f4f9fd;
+      --text: #333;
+      --card-bg: #fff;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: 'Inter', sans-serif;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+    }
+
+    header, footer {
+      background: linear-gradient(to right, var(--primary), var(--accent));
+      color: white;
+      padding: 1.5rem;
+      text-align: center;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+    }
+
+    main {
+      max-width: 960px;
+      margin: 2rem auto;
+      padding: 2rem;
+      background: var(--card-bg);
+      border-radius: 16px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.08);
+      animation: fadeIn 1s ease;
+    }
+
+    h1, h2, h3 {
+      margin-bottom: 1rem;
+    }
+
+    form {
+      margin-bottom: 2rem;
+    }
+
+    input, select, button {
+      width: 100%;
+      padding: 0.75rem;
+      margin-top: 0.5rem;
+      border: 1px solid #ccc;
+      border-radius: 10px;
+      font-size: 1rem;
+      transition: 0.3s;
+    }
+
+    button {
+      background: var(--primary);
+      color: white;
+      border: none;
+      cursor: pointer;
+    }
+
+    button:hover {
+      background: var(--accent);
+    }
+
+    #transaction-list li {
+      padding: 1rem;
+      background: #f1f1f1;
+      margin-bottom: 0.5rem;
+      border-radius: 8px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      animation: fadeInUp 0.5s;
+    }
+
+    .toggle-dark {
+      margin: 1rem 0;
+      padding: 0.5rem 1rem;
+      background: transparent;
+      border: 2px solid var(--primary);
+      color: var(--primary);
+      border-radius: 8px;
+      cursor: pointer;
+      transition: 0.3s;
+    }
+
+    .toggle-dark:hover {
+      background: var(--primary);
+      color: white;
+    }
+
+    canvas {
+      margin-top: 2rem;
+      width: 100%;
+      max-height: 400px;
+    }
+
+    .section {
+      margin-bottom: 3rem;
+    }
+
+    #logout-button {
+      margin-top: 1rem;
+      background-color: #e74c3c;
+    }
+
+    @keyframes fadeInUp {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+  </style>
+</head>
+<body>
+  <header class="animate__animated animate__fadeInDown">
+    <h1>💸 Finance App</h1>
+  </header>
+  <main class="animate__animated animate__fadeIn">
+    <section id="auth-section" class="section">
+      <h2>User Authentication</h2>
+      <div id="auth-forms">
+        <form id="login-form" class="animate__animated animate__fadeInLeft">
+          <h3>Login</h3>
+          <input type="email" id="login-email" placeholder="Email" required />
+          <input type="password" id="login-password" placeholder="Password" required />
+          <button type="submit">Login</button>
+        </form>
+
+        <form id="register-form" class="animate__animated animate__fadeInRight">
+          <h3>Register</h3>
+          <input type="email" id="register-email" placeholder="Email" required />
+          <input type="password" id="register-password" placeholder="Password" required />
+          <button type="submit">Register</button>
+        </form>
+        <button id="logout-button" style="display:none;">Logout</button>
+      </div>
+    </section>
+
+    <section id="app-section" style="display:none;" class="section">
+      <h2>Total Balance: <span id="balance-amount">0 ₼</span></h2>
+      <button class="toggle-dark" onclick="toggleDarkMode()">🌙 Dark Mode</button>
+
+      <h2>Add Transaction</h2>
+      <form id="transaction-form">
+        <input type="text" id="description" placeholder="Description" required />
+        <input type="number" id="amount" placeholder="Amount" required />
+        <select id="category">
+          <option value="Food">Food</option>
+          <option value="Transport">Transport</option>
+          <option value="Entertainment">Entertainment</option>
+          <option value="Income">Income</option>
+          <option value="Other" selected>Other</option>
+        </select>
+        <input type="date" id="date" required />
+        <button type="submit">Add</button>
+      </form>
+      <ul id="transaction-list"></ul>
+
+      <h2>Card Payment</h2>
+      <p><strong>Test Card:</strong> 4242 4242 4242 4242 | Exp:12/34 | CVC:123</p>
+      <button id="donate-button">💖 Donate</button>
+      <button id="premium-button">🚀 Upgrade to Premium</button>
+      <button id="add-credit-button">💰 Add Credit</button>
+      <div id="card-element"></div>
+      <div id="payment-message"></div>
+
+      <h2>📊 Income & Expense Statistics</h2>
+      <canvas id="chart"></canvas>
+    </section>
+  </main>
+  <footer class="animate__animated animate__fadeInUp">
+    <p>&copy; 2025 Finance App. Created by You</p>
+  </footer>
+
+  <script>
+    const users = JSON.parse(localStorage.getItem("users")) || [];
+
+    document.getElementById("register-form").addEventListener("submit", function(e) {
+      e.preventDefault();
+      const email = document.getElementById("register-email").value;
+      const password = document.getElementById("register-password").value;
+      const userExists = users.find(u => u.email === email);
+      if (userExists) {
+        alert("User already exists.");
+      } else {
+        users.push({ email, password });
+        localStorage.setItem("users", JSON.stringify(users));
+        alert("Registration successful.");
+      }
+    });
+
+    document.getElementById("login-form").addEventListener("submit", function(e) {
+      e.preventDefault();
+      const email = document.getElementById("login-email").value;
+      const password = document.getElementById("login-password").value;
+      const user = users.find(u => u.email === email && u.password === password);
+      if (user) {
+        alert("Login successful.");
+        localStorage.setItem("loggedInUser", JSON.stringify(user));
+        showApp();
+      } else {
+        alert("Invalid credentials.");
+      }
+    });
+
+    document.getElementById("logout-button").addEventListener("click", function() {
+      localStorage.removeItem("loggedInUser");
+      location.reload();
+    });
+
+    function showApp() {
+      const authSection = document.getElementById("auth-section");
+      const appSection = document.getElementById("app-section");
+      const logoutButton = document.getElementById("logout-button");
+
+      authSection.classList.add("animate__animated", "animate__fadeOut");
+
+      setTimeout(() => {
+        authSection.style.display = "none";
+        logoutButton.style.display = "block";
+        appSection.style.display = "block";
+        appSection.classList.add("animate__animated", "animate__fadeIn");
+      }, 600);
+    }
+
+    window.onload = () => {
+      const loggedInUser = JSON.parse(localStorage.getItem("loggedInUser"));
+      if (loggedInUser) {
+        showApp();
+      }
+    };
+  </script>
+</body>
+</html>
